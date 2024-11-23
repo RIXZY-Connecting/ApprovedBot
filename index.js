@@ -7,7 +7,8 @@ const {
   ActionRowBuilder, 
   ButtonBuilder, 
   ButtonStyle,
-  ChannelType 
+  ChannelType,
+  PermissionFlagsBits 
 } = require('discord.js');
 
 // Constants
@@ -17,6 +18,7 @@ const CHANNELS = {
 };
 
 const ROLE_NAME = 'Member';
+const ADMIN_ROLE = 'RD Key 🔑';
 
 // Initialize Discord client
 const client = new Client({
@@ -67,6 +69,11 @@ const createActionRow = (memberId) => {
   );
 };
 
+const hasAdminPermission = (member) => {
+  return member.permissions.has(PermissionFlagsBits.Administrator) || 
+         member.roles.cache.some(role => role.name === ADMIN_ROLE);
+};
+
 const handleChannelError = async (interaction, channelName) => {
   console.error(`Channel ${channelName} not found`);
   return await interaction.reply({
@@ -82,17 +89,18 @@ client.once('ready', () => {
 
 client.on('guildMemberAdd', async (member) => {
   try {
-    const welcomeChannel = member.guild.channels.cache.get(CHANNELS.WELCOME);
+    const approvedChannel = member.guild.channels.cache.get(CHANNELS.APPROVED);
     
-    if (!welcomeChannel) {
-      return console.error('ไม่พบห้อง welcome');
+    if (!approvedChannel) {
+      return console.error('ไม่พบห้อง approved-chat');
     }
 
     const embed = createWelcomeEmbed(member);
     const row = createActionRow(member.id);
 
-    await welcomeChannel.send({
-      content: `👋 ${member}`,
+    // ส่งข้อความแจ้งเตือนในห้อง approved
+    await approvedChannel.send({
+      content: `👋 มีสมาชิกใหม่ ${member} รอการอนุมัติ`,
       embeds: [embed],
       components: [row]
     });
@@ -109,6 +117,14 @@ client.on('interactionCreate', async (interaction) => {
     if (!interaction.guild) {
       return await interaction.reply({
         content: '❌ คำสั่งนี้ใช้ได้เฉพาะในเซิร์ฟเวอร์เท่านั้น',
+        ephemeral: true
+      });
+    }
+
+    // ตรวจสอบสิทธิ์ Admin
+    if (!hasAdminPermission(interaction.member)) {
+      return await interaction.reply({
+        content: '❌ คุณไม่มีสิทธิ์ใช้คำสั่งนี้ (ต้องการสิทธิ์ Admin)',
         ephemeral: true
       });
     }
@@ -182,21 +198,4 @@ client.on('interactionCreate', async (interaction) => {
       ButtonBuilder.from(message.components[0].components[1]).setDisabled(true)
     );
 
-    await interaction.message.edit({ components: [disabledRow] });
-    
-    await interaction.reply({
-      content: `✅ ดำเนินการ${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}สมาชิกเรียบร้อยแล้ว`,
-      ephemeral: true
-    });
-
-  } catch (error) {
-    console.error('Error handling interaction:', error);
-    await interaction.reply({
-      content: '❌ เกิดข้อผิดพลาดในการดำเนินการ',
-      ephemeral: true
-    }).catch(() => {});
-  }
-});
-
-// Start the bot
-client.login(process.env.TOKEN);
+    await int
