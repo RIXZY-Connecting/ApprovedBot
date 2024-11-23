@@ -24,7 +24,7 @@ client.on('guildMemberAdd', async (member) => {
   const embed = new EmbedBuilder()
     .setTitle('New Member Joined!')
     .setDescription(`${member.user.tag} เข้ามาในเซิร์ฟเวอร์`)
-    .setColor('BLUE');
+    .setColor(0x0000FF);  // ใช้รหัสสี 0x0000FF แทน 'BLUE'
 
   await owner.send({
     embeds: [embed],
