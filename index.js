@@ -54,7 +54,7 @@ client.on('guildMemberAdd', async (member) => {
     );
 
     // หา Text Channel ในเซิร์ฟเวอร์ที่ต้องการส่งข้อความ (เปลี่ยน `general` เป็นชื่อ Channel ของคุณ)
-    const channel = member.guild.channels.cache.get('1309883227263074324');
+    const channel = member.guild.channels.cache.get('1309911323513196674');
 
     if (!channel) {
       console.error('ไม่พบ Channel ชื่อ "general"');
