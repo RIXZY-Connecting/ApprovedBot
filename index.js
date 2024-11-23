@@ -54,12 +54,24 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
   try {
+    // ตรวจสอบว่า interaction.guild มีค่า
+    if (!interaction.guild) {
+      return await interaction.reply({
+        content: 'ไม่สามารถดำเนินการได้ เนื่องจากคำสั่งนี้ทำงานได้เฉพาะในเซิร์ฟเวอร์',
+        ephemeral: true,
+      });
+    }
+
     // แยกข้อมูลจาก customId
     const [action, userId] = interaction.customId.split('_');
-    const member = await interaction.guild.members.fetch(userId);
+    const member = await interaction.guild.members.fetch(userId).catch(() => null);
 
+    // ตรวจสอบว่า member มีค่า
     if (!member) {
-      return await interaction.reply({ content: 'ไม่พบบัญชีสมาชิกในเซิร์ฟเวอร์', ephemeral: true });
+      return await interaction.reply({
+        content: 'ไม่พบสมาชิกในเซิร์ฟเวอร์',
+        ephemeral: true,
+      });
     }
 
     if (action === 'approve') {
@@ -84,6 +96,7 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 });
+
 
 // เข้าสู่ระบบบอท
 client.login(process.env.TOKEN);
