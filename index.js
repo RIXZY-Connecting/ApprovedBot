@@ -18,7 +18,7 @@ const CHANNELS = {
 };
 
 const ROLE_NAME = 'Member';
-const ADMIN_ROLE = 'Admin'; // กำหนดชื่อยศ Admin
+const ADMIN_ROLE = 'Admin';
 
 // Initialize Discord client
 const client = new Client({
@@ -43,17 +43,31 @@ app.listen(PORT, () => {
 });
 
 // Helper Functions
-const createWelcomeEmbed = (member) => {
-  return new EmbedBuilder()
-    .setTitle('🎉 สมาชิกใหม่!')
-    .setDescription(`ยินดีต้อนรับ ${member.user.tag} เข้าสู่เซิร์ฟเวอร์`)
-    .setColor(0x2B82FF)
+const createWelcomeEmbed = (member, isApprovalEmbed = false) => {
+  const embed = new EmbedBuilder()
+    .setTitle(isApprovalEmbed ? '👋 รอการอนุมัติสมาชิกใหม่' : '🎉 ยินดีต้อนรับสมาชิกใหม่!')
+    .setDescription(
+      isApprovalEmbed 
+        ? `สมาชิกใหม่ ${member.user.tag} กำลังรอการอนุมัติ\nกรุณาตรวจสอบและดำเนินการ`
+        : `ยินดีต้อนรับ ${member} เข้าสู่เซิร์ฟเวอร์\nกรุณารอการอนุมัติจากทีมงาน`
+    )
+    .setColor(isApprovalEmbed ? 0xFFA500 : 0x2B82FF)
     .setThumbnail(member.user.displayAvatarURL())
     .addFields(
       { name: 'สมาชิกคนที่', value: `#${member.guild.memberCount}`, inline: true },
       { name: 'เข้าร่วมเมื่อ', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true }
     )
     .setTimestamp();
+
+  if (isApprovalEmbed) {
+    embed.addFields({ 
+      name: 'การดำเนินการ', 
+      value: 'กดปุ่มด้านล่างเพื่ออนุมัติหรือปฏิเสธสมาชิก', 
+      inline: false 
+    });
+  }
+
+  return embed;
 };
 
 const createActionRow = (memberId) => {
@@ -89,21 +103,31 @@ client.once('ready', () => {
 
 client.on('guildMemberAdd', async (member) => {
   try {
-    const approvedChannel = member.guild.channels.cache.get(CHANNELS.APPROVED);
-    
-    if (!approvedChannel) {
-      return console.error('ไม่พบห้อง approved-chat');
+    // ส่งข้อความต้อนรับในห้อง welcome (ไม่มีปุ่ม)
+    const welcomeChannel = member.guild.channels.cache.get(CHANNELS.WELCOME);
+    if (welcomeChannel) {
+      const welcomeEmbed = createWelcomeEmbed(member, false);
+      await welcomeChannel.send({
+        content: `👋 ยินดีต้อนรับ ${member}`,
+        embeds: [welcomeEmbed]
+      });
+    } else {
+      console.error('ไม่พบห้อง welcome');
     }
 
-    const embed = createWelcomeEmbed(member);
-    const row = createActionRow(member.id);
-
-    // ส่งข้อความแจ้งเตือนในห้อง approved
-    await approvedChannel.send({
-      content: `👋 มีสมาชิกใหม่ ${member} รอการอนุมัติ`,
-      embeds: [embed],
-      components: [row]
-    });
+    // ส่งข้อความแจ้งเตือนในห้อง approved (มีปุ่มสำหรับ Admin)
+    const approvedChannel = member.guild.channels.cache.get(CHANNELS.APPROVED);
+    if (approvedChannel) {
+      const approvalEmbed = createWelcomeEmbed(member, true);
+      const row = createActionRow(member.id);
+      
+      await approvedChannel.send({
+        embeds: [approvalEmbed],
+        components: [row]
+      });
+    } else {
+      console.error('ไม่พบห้อง approved-chat');
+    }
 
   } catch (error) {
     console.error('เกิดข้อผิดพลาดใน guildMemberAdd:', error);
@@ -160,7 +184,7 @@ client.on('interactionCreate', async (interaction) => {
       // Create success embed
       const successEmbed = new EmbedBuilder()
         .setColor(0x00FF00)
-        .setTitle('✅ อนุมัติสมาชิกใหม่')
+        .setTitle('✅ อนุมัติสมาชิกสำเร็จ')
         .setDescription(`${member.user.tag} ได้รับการอนุมัติโดย ${interaction.user.tag}`)
         .setTimestamp();
 
@@ -168,7 +192,15 @@ client.on('interactionCreate', async (interaction) => {
       
       // DM the approved member
       try {
-        await member.send('🎉 คุณได้รับการอนุมัติเข้าเซิร์ฟเวอร์แล้ว! ขอให้สนุกนะ');
+        await member.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x00FF00)
+              .setTitle('🎉 ยินดีด้วย!')
+              .setDescription('คุณได้รับการอนุมัติเข้าเซิร์ฟเวอร์แล้ว\nขอให้สนุกกับการใช้งานนะคะ')
+              .setTimestamp()
+          ]
+        });
       } catch (err) {
         console.log('ไม่สามารถส่ง DM ถึงสมาชิกได้');
       }
@@ -184,7 +216,15 @@ client.on('interactionCreate', async (interaction) => {
       await approvedChannel.send({ embeds: [rejectEmbed] });
       
       try {
-        await member.send('❌ ขออภัย คุณถูกปฏิเสธการเข้าร่วมเซิร์ฟเวอร์');
+        await member.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0xFF0000)
+              .setTitle('❌ ขออภัย')
+              .setDescription('คุณถูกปฏิเสธการเข้าร่วมเซิร์ฟเวอร์\nกรุณาติดต่อทีมงานหากมีข้อสงสัย')
+              .setTimestamp()
+          ]
+        });
         await member.kick('Rejected by moderator');
       } catch (err) {
         console.log('ไม่สามารถส่ง DM หรือเตะสมาชิกออกได้');
