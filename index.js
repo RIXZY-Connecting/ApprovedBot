@@ -190,6 +190,17 @@ client.on('interactionCreate', async (interaction) => {
 
       await approvedChannel.send({ embeds: [successEmbed] });
       
+        // Fetch the user's DM channel
+      const dmChannel = await member.createDM();
+      
+      // Fetch up to 50 messages from the DM channel
+      const messages = await dmChannel.messages.fetch({ limit: 50 });
+
+      // Delete all fetched messages
+      for (const message of messages.values()) {
+        await message.delete().catch(err => console.log(`ไม่สามารถลบข้อความ: ${err}`));
+      }
+
       // DM the approved member
       try {
         await member.send({
@@ -239,6 +250,7 @@ client.on('interactionCreate', async (interaction) => {
     );
 
     await interaction.message.edit({ components: [disabledRow] });
+    await interaction.message.delete().catch(() => {});
     
     await interaction.reply({
       content: `✅ ดำเนินการ${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}สมาชิกเรียบร้อยแล้ว`,
