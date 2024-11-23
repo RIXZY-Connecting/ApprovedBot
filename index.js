@@ -18,7 +18,7 @@ const CHANNELS = {
 };
 
 const ROLE_NAME = 'Member';
-const ADMIN_ROLE = 'RD Key 🔑';
+const ADMIN_ROLE = 'Admin'; // กำหนดชื่อยศ Admin
 
 // Initialize Discord client
 const client = new Client({
@@ -198,4 +198,21 @@ client.on('interactionCreate', async (interaction) => {
       ButtonBuilder.from(message.components[0].components[1]).setDisabled(true)
     );
 
-    await int
+    await interaction.message.edit({ components: [disabledRow] });
+    
+    await interaction.reply({
+      content: `✅ ดำเนินการ${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}สมาชิกเรียบร้อยแล้ว`,
+      ephemeral: true
+    });
+
+  } catch (error) {
+    console.error('Error handling interaction:', error);
+    await interaction.reply({
+      content: '❌ เกิดข้อผิดพลาดในการดำเนินการ',
+      ephemeral: true
+    }).catch(() => {});
+  }
+});
+
+// Start the bot
+client.login(process.env.TOKEN);
