@@ -54,7 +54,7 @@ client.on('guildMemberAdd', async (member) => {
     );
 
     // หา Text Channel ในเซิร์ฟเวอร์ที่ต้องการส่งข้อความ (เปลี่ยน `general` เป็นชื่อ Channel ของคุณ)
-    const channel = member.guild.channels.cache.find((ch) => ch.name === 'general' && ch.isTextBased());
+    const channel = member.guild.channels.cache.get('1309883227263074324');
 
     if (!channel) {
       console.error('ไม่พบ Channel ชื่อ "general"');
@@ -102,7 +102,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (!channel) {
       return await interaction.reply({
-        content: 'ไม่พบ Channel ชื่อ "general"',
+        content: 'ไม่พบ Channel ชื่อ "approved-chat"',
         ephemeral: true,
       });
     }
@@ -121,6 +121,7 @@ client.on('interactionCreate', async (interaction) => {
       await member.kick('Rejected by owner'); // เตะสมาชิกออก
       await channel.send(`❌ ปฏิเสธ ${member.user.tag} และเตะออกจากเซิร์ฟเวอร์เรียบร้อยแล้ว!`);
       await interaction.reply({ content: 'ปฏิเสธสำเร็จ!', ephemeral: true });
+      await interaction.deleteReply();
     }
   } catch (error) {
     console.error('Error handling interaction:', error);
