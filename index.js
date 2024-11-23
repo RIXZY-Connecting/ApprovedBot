@@ -16,16 +16,22 @@ client.once('ready', () => {
   console.log(`บอทออนไลน์แล้ว! ชื่อ: ${client.user.tag}`);
 });
 
-// จับ Event เมื่อมีสมาชิกใหม่เข้ามา
+// Event เมื่อสมาชิกใหม่เข้ามาในเซิร์ฟเวอร์
 client.on('guildMemberAdd', async (member) => {
   try {
-    const owner = await member.guild.fetchOwner(); // หาเจ้าของเซิร์ฟเวอร์
+    const owner = await member.guild.fetchOwner();
+
+    // ตรวจสอบว่า owner มีอยู่จริง
+    if (!owner) {
+      console.error('ไม่พบเจ้าของเซิร์ฟเวอร์');
+      return;
+    }
 
     // สร้าง Embed
     const embed = new EmbedBuilder()
       .setTitle('New Member Joined!')
       .setDescription(`${member.user.tag} เข้ามาในเซิร์ฟเวอร์`)
-      .setColor(0x0000FF); // ใช้รหัสสี 0x0000FF แทน 'BLUE'
+      .setColor(0x0000FF);
 
     // สร้างปุ่ม
     const row = new ActionRowBuilder().addComponents(
@@ -39,25 +45,27 @@ client.on('guildMemberAdd', async (member) => {
         .setStyle(ButtonStyle.Danger)
     );
 
-    // ส่งข้อความหาเจ้าของ
+    // ส่งข้อความหาเจ้าของเซิร์ฟเวอร์
     await owner.send({
       embeds: [embed],
       components: [row],
+    }).catch((error) => {
+      console.error('ไม่สามารถส่งข้อความถึงเจ้าของเซิร์ฟเวอร์:', error);
     });
   } catch (error) {
-    console.error('Error sending message to owner:', error);
+    console.error('เกิดข้อผิดพลาดใน guildMemberAdd:', error);
   }
 });
 
-// จับ Event เมื่อมีการกดปุ่ม
+// Event เมื่อมีการกดปุ่ม
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
   try {
-    // ตรวจสอบว่า interaction.guild มีค่า
+    // ตรวจสอบว่า interaction.guild มีอยู่จริง
     if (!interaction.guild) {
       return await interaction.reply({
-        content: 'ไม่สามารถดำเนินการได้ เนื่องจากคำสั่งนี้ทำงานได้เฉพาะในเซิร์ฟเวอร์',
+        content: 'คำสั่งนี้ทำงานได้เฉพาะในเซิร์ฟเวอร์',
         ephemeral: true,
       });
     }
@@ -96,7 +104,6 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 });
-
 
 // เข้าสู่ระบบบอท
 client.login(process.env.TOKEN);
