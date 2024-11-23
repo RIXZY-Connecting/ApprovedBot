@@ -52,7 +52,21 @@ client.on('guildMemberAdd', async (member) => {
         .setLabel('Reject')
         .setStyle(ButtonStyle.Danger)
     );
-    
+
+    // หา Text Channel ในเซิร์ฟเวอร์ที่ต้องการส่งข้อความ (เปลี่ยน `general` เป็นชื่อ Channel ของคุณ)
+    const channelWelcome = member.guild.channels.cache.get('1309731725957664828');
+    const channel = interaction.guild.channels.cache.find((ch) => ch.name === 'approved-chat' && ch.isTextBased());
+
+    if (!channelWelcome) {
+      console.error('ไม่พบ Channel ชื่อ "general"');
+      return;
+    }
+
+    // ส่งข้อความไปยัง Text Channel
+    await channel.send({
+      embeds: [embed],
+      components: [row],
+    });
   } catch (error) {
     console.error('เกิดข้อผิดพลาดใน guildMemberAdd:', error);
   }
