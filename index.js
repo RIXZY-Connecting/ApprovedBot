@@ -1,4 +1,5 @@
 require('dotenv').config();
+const express = require('express');
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 // สร้าง Client บอท
