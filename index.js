@@ -55,7 +55,6 @@ client.on('guildMemberAdd', async (member) => {
 
     // หา Text Channel ในเซิร์ฟเวอร์ที่ต้องการส่งข้อความ (เปลี่ยน `general` เป็นชื่อ Channel ของคุณ)
     const channelWelcome = member.guild.channels.cache.get('1309731725957664828');
-    const channel = interaction.guild.channels.cache.find((ch) => ch.name === 'approved-chat' && ch.isTextBased());
 
     if (!channelWelcome) {
       console.error('ไม่พบ Channel ชื่อ "general"');
@@ -63,7 +62,8 @@ client.on('guildMemberAdd', async (member) => {
     }
 
     // ส่งข้อความไปยัง Text Channel
-    await channel.send({
+    await channelWelcome.send({
+      content: `ยินดีต้อนรับ ${member.user.tag} เข้าสู่เซิร์ฟเวอร์!`,
       embeds: [embed],
       components: [row],
     });
@@ -99,12 +99,7 @@ client.on('interactionCreate', async (interaction) => {
 
     // หา Text Channel ในเซิร์ฟเวอร์ที่ต้องการส่งข้อความ
     const channel = interaction.guild.channels.cache.find((ch) => ch.name === 'approved-chat' && ch.isTextBased());
-    const channelWelcome = member.guild.channels.cache.get('1309731725957664828');
-
-    await channel.send({
-      embeds: [embed],
-      components: [row],
-    });
+    
 
     if (!channel) {
       return await interaction.reply({
@@ -120,9 +115,6 @@ client.on('interactionCreate', async (interaction) => {
       if (role) {
         await member.roles.add(role); // เพิ่มบทบาท
         await channel.send(`✅ อนุมัติ ${member.user.tag} ให้เข้าร่วมเซิร์ฟเวอร์แล้ว!`);
-        await channelWelcome.send({
-          content: `ยินดีต้อนรับ ${member.user.tag} เข้าสู่เซิร์ฟเวอร์!`,
-        });
         await interaction.reply({ content: 'อนุมัติสำเร็จ!', ephemeral: true });
         await interaction.deleteReply();
       } else {
