@@ -1,8 +1,24 @@
 require('dotenv').config();
 const express = require('express');
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { 
+  Client, 
+  GatewayIntentBits, 
+  EmbedBuilder, 
+  ActionRowBuilder, 
+  ButtonBuilder, 
+  ButtonStyle,
+  ChannelType 
+} = require('discord.js');
 
-// สร้าง Client บอท
+// Constants
+const CHANNELS = {
+  WELCOME: '1309731725957664828',
+  APPROVED: '1309911323513196674'
+};
+
+const ROLE_NAME = 'Member';
+
+// Initialize Discord client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -12,128 +28,175 @@ const client = new Client({
   ],
 });
 
-// เมื่อบอทพร้อม
-client.once('ready', () => {
-  console.log(`บอทออนไลน์แล้ว! ชื่อ: ${client.user.tag}`);
-});
-
-// Login Discord Bot
-client.login(process.env.TOKEN);
-
-// สร้างเซิร์ฟเวอร์ HTTP
+// Express server setup
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
   res.send('Bot is running!');
 });
 
-// ใช้ PORT จาก Render หรือ PORT 3000 เป็นค่าเริ่มต้น
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-// Event เมื่อสมาชิกใหม่เข้ามาในเซิร์ฟเวอร์
+
+// Helper Functions
+const createWelcomeEmbed = (member) => {
+  return new EmbedBuilder()
+    .setTitle('🎉 สมาชิกใหม่!')
+    .setDescription(`ยินดีต้อนรับ ${member.user.tag} เข้าสู่เซิร์ฟเวอร์`)
+    .setColor(0x2B82FF)
+    .setThumbnail(member.user.displayAvatarURL())
+    .addFields(
+      { name: 'สมาชิกคนที่', value: `#${member.guild.memberCount}`, inline: true },
+      { name: 'เข้าร่วมเมื่อ', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true }
+    )
+    .setTimestamp();
+};
+
+const createActionRow = (memberId) => {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`approve_${memberId}`)
+      .setLabel('✅ อนุมัติ')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`reject_${memberId}`)
+      .setLabel('❌ ปฏิเสธ')
+      .setStyle(ButtonStyle.Danger)
+  );
+};
+
+const handleChannelError = async (interaction, channelName) => {
+  console.error(`Channel ${channelName} not found`);
+  return await interaction.reply({
+    content: `❌ ไม่พบห้อง ${channelName}`,
+    ephemeral: true
+  });
+};
+
+// Event Handlers
+client.once('ready', () => {
+  console.log(`✅ ${client.user.tag} พร้อมใช้งานแล้ว!`);
+});
+
 client.on('guildMemberAdd', async (member) => {
   try {
-    // สร้าง Embed แจ้งเตือน
-    const embed = new EmbedBuilder()
-      .setTitle('New Member Joined!')
-      .setDescription(`${member.user.tag} เข้ามาในเซิร์ฟเวอร์`)
-      .setColor(0x0000FF);
-
-    // สร้างปุ่ม
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`approve_${member.id}`)
-        .setLabel('Approve')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`reject_${member.id}`)
-        .setLabel('Reject')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    // หา Text Channel ในเซิร์ฟเวอร์ที่ต้องการส่งข้อความ (เปลี่ยน `general` เป็นชื่อ Channel ของคุณ)
-    const channel = member.guild.channels.cache.get('1309911323513196674');
-
-    if (!channel) {
-      console.error('ไม่พบ Channel ชื่อ "general"');
-      return;
+    const welcomeChannel = member.guild.channels.cache.get(CHANNELS.WELCOME);
+    
+    if (!welcomeChannel) {
+      return console.error('ไม่พบห้อง welcome');
     }
 
-    // ส่งข้อความไปยัง Text Channel
-    await channel.send({
-      content: `ยินดีต้อนรับ ${member.user.tag} เข้าสู่เซิร์ฟเวอร์!`,
+    const embed = createWelcomeEmbed(member);
+    const row = createActionRow(member.id);
+
+    await welcomeChannel.send({
+      content: `👋 ${member}`,
       embeds: [embed],
-      components: [row],
+      components: [row]
     });
+
   } catch (error) {
     console.error('เกิดข้อผิดพลาดใน guildMemberAdd:', error);
   }
 });
 
-// Event เมื่อมีการกดปุ่ม
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
   try {
-    // ตรวจสอบว่า interaction.guild มีอยู่จริง
     if (!interaction.guild) {
       return await interaction.reply({
-        content: 'คำสั่งนี้ทำงานได้เฉพาะในเซิร์ฟเวอร์',
-        ephemeral: true,
+        content: '❌ คำสั่งนี้ใช้ได้เฉพาะในเซิร์ฟเวอร์เท่านั้น',
+        ephemeral: true
       });
     }
 
-    // แยกข้อมูลจาก customId
     const [action, userId] = interaction.customId.split('_');
     const member = await interaction.guild.members.fetch(userId).catch(() => null);
 
-    // ตรวจสอบว่า member มีค่า
     if (!member) {
       return await interaction.reply({
-        content: 'ไม่พบสมาชิกในเซิร์ฟเวอร์',
-        ephemeral: true,
+        content: '❌ ไม่พบสมาชิกในเซิร์ฟเวอร์',
+        ephemeral: true
       });
     }
 
-    // หา Text Channel ในเซิร์ฟเวอร์ที่ต้องการส่งข้อความ
-    const channel = interaction.guild.channels.cache.find((ch) => ch.name === 'approved-chat' && ch.isTextBased());
-
-    if (!channel) {
-      return await interaction.reply({
-        content: 'ไม่พบ Channel ชื่อ "approved-chat"',
-        ephemeral: true,
-      });
+    const approvedChannel = interaction.guild.channels.cache.get(CHANNELS.APPROVED);
+    if (!approvedChannel) {
+      return handleChannelError(interaction, 'approved-chat');
     }
 
+    // Handle member approval
     if (action === 'approve') {
-      // หา Role
-      const role = interaction.guild.roles.cache.find((role) => role.name === 'Member');
-      if (role) {
-        await member.roles.add(role); // เพิ่มบทบาท
-        await channel.send(`✅ อนุมัติ ${member.user.tag} ให้เข้าร่วมเซิร์ฟเวอร์แล้ว!`);
-        await interaction.reply({ content: 'อนุมัติสำเร็จ!', ephemeral: true });
-        await interaction.deleteReply();
-      } else {
-        await interaction.reply({ content: 'ไม่พบบทบาท Member', ephemeral: true });
-        await interaction.deleteReply();
+      const role = interaction.guild.roles.cache.find(r => r.name === ROLE_NAME);
+      
+      if (!role) {
+        return await interaction.reply({
+          content: `❌ ไม่พบยศ ${ROLE_NAME}`,
+          ephemeral: true
+        });
       }
+
+      await member.roles.add(role);
+      
+      // Create success embed
+      const successEmbed = new EmbedBuilder()
+        .setColor(0x00FF00)
+        .setTitle('✅ อนุมัติสมาชิกใหม่')
+        .setDescription(`${member.user.tag} ได้รับการอนุมัติโดย ${interaction.user.tag}`)
+        .setTimestamp();
+
+      await approvedChannel.send({ embeds: [successEmbed] });
+      
+      // DM the approved member
+      try {
+        await member.send('🎉 คุณได้รับการอนุมัติเข้าเซิร์ฟเวอร์แล้ว! ขอให้สนุกนะ');
+      } catch (err) {
+        console.log('ไม่สามารถส่ง DM ถึงสมาชิกได้');
+      }
+
+    // Handle member rejection
     } else if (action === 'reject') {
-      await member.kick('Rejected by owner'); // เตะสมาชิกออก
-      await channel.send(`❌ ปฏิเสธ ${member.user.tag} และเตะออกจากเซิร์ฟเวอร์เรียบร้อยแล้ว!`);
-      await interaction.reply({ content: 'ปฏิเสธสำเร็จ!', ephemeral: true });
-      await interaction.deleteReply();
+      const rejectEmbed = new EmbedBuilder()
+        .setColor(0xFF0000)
+        .setTitle('❌ ปฏิเสธสมาชิก')
+        .setDescription(`${member.user.tag} ถูกปฏิเสธโดย ${interaction.user.tag}`)
+        .setTimestamp();
+
+      await approvedChannel.send({ embeds: [rejectEmbed] });
+      
+      try {
+        await member.send('❌ ขออภัย คุณถูกปฏิเสธการเข้าร่วมเซิร์ฟเวอร์');
+        await member.kick('Rejected by moderator');
+      } catch (err) {
+        console.log('ไม่สามารถส่ง DM หรือเตะสมาชิกออกได้');
+      }
     }
+
+    // Disable buttons after action
+    const message = interaction.message;
+    const disabledRow = new ActionRowBuilder().addComponents(
+      ButtonBuilder.from(message.components[0].components[0]).setDisabled(true),
+      ButtonBuilder.from(message.components[0].components[1]).setDisabled(true)
+    );
+
+    await interaction.message.edit({ components: [disabledRow] });
+    
+    await interaction.reply({
+      content: `✅ ดำเนินการ${action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}สมาชิกเรียบร้อยแล้ว`,
+      ephemeral: true
+    });
+
   } catch (error) {
     console.error('Error handling interaction:', error);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: 'เกิดข้อผิดพลาดในการดำเนินการ', ephemeral: true });
-    } else {
-      await interaction.reply({ content: 'เกิดข้อผิดพลาดในการดำเนินการ', ephemeral: true });
-    }
+    await interaction.reply({
+      content: '❌ เกิดข้อผิดพลาดในการดำเนินการ',
+      ephemeral: true
+    }).catch(() => {});
   }
 });
 
-// เข้าสู่ระบบบอท
+// Start the bot
 client.login(process.env.TOKEN);
