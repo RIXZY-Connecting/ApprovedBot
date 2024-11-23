@@ -108,8 +108,6 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (action === 'approve') {
-
-      await channel.delete();
       // หา Role
       const role = interaction.guild.roles.cache.find((role) => role.name === 'Member');
       if (role) {
@@ -122,7 +120,6 @@ client.on('interactionCreate', async (interaction) => {
         await interaction.deleteReply();
       }
     } else if (action === 'reject') {
-      await channel.delete();
       await member.kick('Rejected by owner'); // เตะสมาชิกออก
       await channel.send(`❌ ปฏิเสธ ${member.user.tag} และเตะออกจากเซิร์ฟเวอร์เรียบร้อยแล้ว!`);
       await interaction.reply({ content: 'ปฏิเสธสำเร็จ!', ephemeral: true });
